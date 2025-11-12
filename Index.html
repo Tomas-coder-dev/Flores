@@ -9,8 +9,11 @@
   <title>Hola, monita — Flores</title>
 </head>
 <body>
+  <!-- Canvas para fuegos artificiales (está detrás del contenido) -->
+  <canvas id="fireworks-canvas" aria-hidden="true"></canvas>
+
   <main class="page">
-    <header class="card">
+    <header class="card" role="banner">
       <figure class="logo" aria-hidden="true">
         <img src="DATOS/img/flowers.png" alt="" />
       </figure>
@@ -30,5 +33,203 @@
       <p class="note">Hecho con cariño 💐</p>
     </header>
   </main>
+
+  <!-- Script: animación de fuegos artificiales románticos -->
+  <script>
+    // Si el usuario prefiere reducir movimiento, no ejecutar la animación
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!prefersReducedMotion) {
+      (function () {
+        const canvas = document.getElementById('fireworks-canvas');
+        const ctx = canvas.getContext('2d');
+        let width = 0, height = 0, lastTime = 0;
+        const fireworks = []; // cohetes que suben y luego explotan
+        const particles = [];  // partículas de la explosión
+
+        // paleta romántica suave
+        const palette = [
+          'rgba(255,143,177,0.95)', // rosa
+          'rgba(255,210,110,0.95)', // amarillo pastel
+          'rgba(122,231,199,0.95)', // menta
+          'rgba(255,178,214,0.95)', // rosa claro
+          'rgba(168,120,255,0.95)'  // lavanda
+        ];
+
+        function resize() {
+          const dpr = Math.max(1, window.devicePixelRatio || 1);
+          width = canvas.width = Math.floor(window.innerWidth * dpr);
+          height = canvas.height = Math.floor(window.innerHeight * dpr);
+          canvas.style.width = window.innerWidth + 'px';
+          canvas.style.height = window.innerHeight + 'px';
+          ctx.scale(dpr, dpr);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // utilidades
+        function rand(min, max) { return Math.random() * (max - min) + min; }
+        function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+
+        // Cohete
+        function Firework(x, y, targetX, targetY, color) {
+          this.x = x; this.y = y;
+          this.targetX = targetX; this.targetY = targetY;
+          this.vx = (targetX - x) / rand(30, 45);
+          this.vy = (targetY - y) / rand(30, 45);
+          this.color = color;
+          this.trail = [];
+          this.alive = true;
+          this.timer = 0;
+        }
+        Firework.prototype.update = function (dt) {
+          this.trail.push({ x: this.x, y: this.y });
+          if (this.trail.length > 6) this.trail.shift();
+          this.x += this.vx;
+          this.y += this.vy;
+          this.vy += 0.02; // gravedad sutil
+          this.timer += dt;
+          // si alcanzó el objetivo o llegó a altura límite -> explotar
+          if (this.y <= this.targetY || this.timer > 120) {
+            this.alive = false;
+            explode(this.x, this.y, this.color);
+          }
+        };
+        Firework.prototype.draw = function (ctx) {
+          // trail
+          ctx.beginPath();
+          for (let i = 0; i < this.trail.length; i++) {
+            const p = this.trail[i];
+            ctx.globalAlpha = i / this.trail.length * 0.8;
+            ctx.fillStyle = this.color;
+            ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+          }
+          ctx.globalAlpha = 1;
+          // head
+          ctx.beginPath();
+          ctx.fillStyle = this.color;
+          ctx.arc(this.x, this.y, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+        };
+
+        // Partícula
+        function Particle(x, y, color) {
+          this.x = x; this.y = y;
+          const speed = rand(1.2, 5.2);
+          const angle = rand(0, Math.PI * 2);
+          this.vx = Math.cos(angle) * speed;
+          this.vy = Math.sin(angle) * speed;
+          this.life = rand(50, 110); // frames
+          this.age = 0;
+          this.color = color;
+          this.size = rand(1.2, 3.6);
+          this.friction = 0.985;
+        }
+        Particle.prototype.update = function (dt) {
+          this.vx *= this.friction;
+          this.vy *= this.friction;
+          this.vy += 0.02; // gravedad
+          this.x += this.vx;
+          this.y += this.vy;
+          this.age += dt;
+        };
+        Particle.prototype.draw = function (ctx) {
+          const t = Math.max(0, 1 - this.age / this.life);
+          ctx.globalAlpha = t;
+          // brillo radial
+          const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 6);
+          g.addColorStop(0, this.color);
+          g.addColorStop(0.25, this.color.replace('0.95', '0.55'));
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size * 6 * t, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        };
+
+        function explode(x, y, color) {
+          const count = randInt(20, 44);
+          for (let i = 0; i < count; i++) {
+            const c = palette[randInt(0, palette.length - 1)];
+            particles.push(new Particle(x, y, c));
+          }
+        }
+
+        // lanzar un cohete desde la parte inferior a una altura aleatoria
+        function launchRandom() {
+          const startX = rand(width * 0.2, width * 0.8) / (window.devicePixelRatio || 1);
+          const startY = (height / (window.devicePixelRatio || 1)) + 20;
+          const targetX = rand(80, (window.innerWidth - 80));
+          const targetY = rand(window.innerHeight * 0.08, window.innerHeight * 0.45);
+          const c = palette[randInt(0, palette.length - 1)];
+          fireworks.push(new Firework(startX, startY, targetX, targetY, c));
+        }
+
+        // anim loop
+        function loop(ts) {
+          if (!lastTime) lastTime = ts;
+          const dt = Math.min(20, ts - lastTime);
+          lastTime = ts;
+
+          // limpiar con leve estela (para efecto borroso)
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.fillStyle = 'rgba(4,2,12,0.25)'; // deja rastros sutiles
+          ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+          ctx.globalCompositeOperation = 'lighter';
+
+          // actualizar y dibujar cohetes
+          for (let i = fireworks.length - 1; i >= 0; i--) {
+            const f = fireworks[i];
+            f.update(dt);
+            f.draw(ctx);
+            if (!f.alive) fireworks.splice(i, 1);
+          }
+
+          // partículas
+          for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.update(dt);
+            p.draw(ctx);
+            if (p.age > p.life) particles.splice(i, 1);
+          }
+
+          // mantener número razonable
+          if (particles.length > 1200) particles.splice(0, particles.length - 900);
+
+          requestAnimationFrame(loop);
+        }
+
+        // iniciar lanzamientos periódicos y al pulsar
+        let autoInterval = setInterval(launchRandom, 900); // cada 0.9s
+        // a veces lanzar ráfagas
+        setInterval(() => {
+          const burst = randInt(2, 4);
+          for (let i = 0; i < burst; i++) {
+            setTimeout(launchRandom, i * 160);
+          }
+        }, 4200);
+
+        // al hacer clic / tocar, lanza hacia la posición
+        window.addEventListener('pointerdown', (ev) => {
+          const x = ev.clientX;
+          const y = ev.clientY;
+          for (let i = 0; i < randInt(2, 4); i++) {
+            const startX = rand(width * 0.15, width * 0.85) / (window.devicePixelRatio || 1);
+            const startY = (height / (window.devicePixelRatio || 1)) + 20;
+            const c = palette[randInt(0, palette.length - 1)];
+            fireworks.push(new Firework(startX, startY, x + rand(-20,20), y + rand(-20,20), c));
+          }
+        });
+
+        // iniciar loop
+        requestAnimationFrame(loop);
+
+        // limpiar al salir de la página
+        window.addEventListener('blur', () => {
+          clearInterval(autoInterval);
+        });
+      })();
+    } // fin prefersReducedMotion
+  </script>
 </body>
 </html>
