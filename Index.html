@@ -9,16 +9,17 @@
   <title>Hola, monita — Flores</title>
 </head>
 <body>
-  <!-- Canvas para fuegos artificiales (está detrás del contenido) -->
-  <canvas id="fireworks-canvas" aria-hidden="true"></canvas>
+  <!-- Canvas para pétalos y brillos (detrás del contenido) -->
+  <canvas id="romantic-canvas" aria-hidden="true"></canvas>
 
-  <main class="page">
+  <main class="page" aria-labelledby="greeting-title">
     <header class="card" role="banner">
+
       <figure class="logo" aria-hidden="true">
-        <img src="DATOS/img/flowers.png" alt="" />
+        <img src="DATOS/img/flowers.png" alt="Logo floral" width="72" height="72" loading="lazy" />
       </figure>
 
-      <h1 class="greetings" aria-label="Hola monita">
+      <h1 id="greeting-title" class="greetings" aria-label="Hola monita">
         <span>H</span><span>o</span><span>l</span><span>a</span>
         <span class="space"> </span>
         <span class="small">m</span><span>o</span><span>n</span><span>i</span><span>t</span><span>a</span>
@@ -27,209 +28,207 @@
       <p class="description">Esto es para ti <span class="heart" aria-hidden="true">♥</span></p>
 
       <div class="actions">
-        <a class="btn" href="DATOS/FLORES.html" aria-label="Ver las flores">Ver flores</a>
+        <a class="btn" href="DATOS/FLORES.html" aria-label="Ver las flores">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="transform:translateY(-1px)">
+            <defs>
+              <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#ffd3a6"/>
+                <stop offset="1" stop-color="#ff8fb1"/>
+              </linearGradient>
+            </defs>
+            <path fill="url(#g)" d="M12 2l3 6 6 .5-4.5 4 1 6L12 16l-5.5 3.5 1-6L3 8.5 9 8z"/>
+          </svg>
+          Ver flores
+        </a>
       </div>
 
-      <p class="note">Hecho con cariño 💐</p>
+      <!-- nota eliminada según solicitud -->
     </header>
   </main>
 
-  <!-- Script: animación de fuegos artificiales románticos -->
+  <!-- Script: animación suave de pétalos + brillos -->
   <script>
-    // Si el usuario prefiere reducir movimiento, no ejecutar la animación
+    // Respetar prefer-reduced-motion
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!prefersReducedMotion) {
       (function () {
-        const canvas = document.getElementById('fireworks-canvas');
+        const canvas = document.getElementById('romantic-canvas');
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        let width = 0, height = 0, lastTime = 0;
-        const fireworks = []; // cohetes que suben y luego explotan
-        const particles = [];  // partículas de la explosión
+        let W = 0, H = 0;
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-        // paleta romántica suave
-        const palette = [
-          'rgba(255,143,177,0.95)', // rosa
-          'rgba(255,210,110,0.95)', // amarillo pastel
-          'rgba(122,231,199,0.95)', // menta
-          'rgba(255,178,214,0.95)', // rosa claro
-          'rgba(168,120,255,0.95)'  // lavanda
-        ];
+        const petals = [];
+        const sparkles = [];
+        const PETAL_COUNT = 28;
+        const SPARKLE_COUNT = 12;
 
         function resize() {
-          const dpr = Math.max(1, window.devicePixelRatio || 1);
-          width = canvas.width = Math.floor(window.innerWidth * dpr);
-          height = canvas.height = Math.floor(window.innerHeight * dpr);
+          W = canvas.width = Math.floor(window.innerWidth * dpr);
+          H = canvas.height = Math.floor(window.innerHeight * dpr);
           canvas.style.width = window.innerWidth + 'px';
           canvas.style.height = window.innerHeight + 'px';
-          ctx.scale(dpr, dpr);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
         window.addEventListener('resize', resize);
         resize();
 
-        // utilidades
         function rand(min, max) { return Math.random() * (max - min) + min; }
         function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
 
-        // Cohete
-        function Firework(x, y, targetX, targetY, color) {
+        // Petal
+        function Petal(x, y, size, color, sway) {
           this.x = x; this.y = y;
-          this.targetX = targetX; this.targetY = targetY;
-          this.vx = (targetX - x) / rand(30, 45);
-          this.vy = (targetY - y) / rand(30, 45);
+          this.size = size;
           this.color = color;
-          this.trail = [];
-          this.alive = true;
-          this.timer = 0;
+          this.vy = rand(0.15, 0.6);
+          this.vx = rand(-0.3, 0.3);
+          this.angle = rand(0, Math.PI * 2);
+          this.spin = rand(-0.03, 0.03);
+          this.sway = sway;
+          this.life = randInt(9000, 22000);
+          this.birth = performance.now();
         }
-        Firework.prototype.update = function (dt) {
-          this.trail.push({ x: this.x, y: this.y });
-          if (this.trail.length > 6) this.trail.shift();
-          this.x += this.vx;
-          this.y += this.vy;
-          this.vy += 0.02; // gravedad sutil
-          this.timer += dt;
-          // si alcanzó el objetivo o llegó a altura límite -> explotar
-          if (this.y <= this.targetY || this.timer > 120) {
-            this.alive = false;
-            explode(this.x, this.y, this.color);
+        Petal.prototype.update = function (dt) {
+          this.angle += this.spin * dt * 0.06;
+          this.x += this.vx * dt * 0.08 + Math.sin((performance.now() + this.sway) * 0.0006) * 0.24;
+          this.y += this.vy * dt * 0.08;
+          if (this.y > window.innerHeight + 30) {
+            this.y = -rand(20, 60);
+            this.x = rand(0, window.innerWidth);
           }
         };
-        Firework.prototype.draw = function (ctx) {
-          // trail
+        Petal.prototype.draw = function (ctx) {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.angle);
+          const g = ctx.createLinearGradient(-this.size, -this.size, this.size, this.size);
+          g.addColorStop(0, this.color.start);
+          g.addColorStop(1, this.color.end);
+          ctx.fillStyle = g;
           ctx.beginPath();
-          for (let i = 0; i < this.trail.length; i++) {
-            const p = this.trail[i];
-            ctx.globalAlpha = i / this.trail.length * 0.8;
-            ctx.fillStyle = this.color;
-            ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
-          }
-          ctx.globalAlpha = 1;
-          // head
-          ctx.beginPath();
-          ctx.fillStyle = this.color;
-          ctx.arc(this.x, this.y, 3.2, 0, Math.PI * 2);
+          ctx.ellipse(0, 0, this.size, this.size * 0.6, Math.PI / 6, 0, Math.PI * 2);
           ctx.fill();
+          ctx.restore();
         };
 
-        // Partícula
-        function Particle(x, y, color) {
+        // Sparkle (soft glowing dot)
+        function Sparkle(x, y, r, color) {
           this.x = x; this.y = y;
-          const speed = rand(1.2, 5.2);
-          const angle = rand(0, Math.PI * 2);
-          this.vx = Math.cos(angle) * speed;
-          this.vy = Math.sin(angle) * speed;
-          this.life = rand(50, 110); // frames
-          this.age = 0;
+          this.r = r;
           this.color = color;
-          this.size = rand(1.2, 3.6);
-          this.friction = 0.985;
+          this.phase = rand(0, 1000);
+          this.speed = rand(0.001, 0.004);
         }
-        Particle.prototype.update = function (dt) {
-          this.vx *= this.friction;
-          this.vy *= this.friction;
-          this.vy += 0.02; // gravedad
-          this.x += this.vx;
-          this.y += this.vy;
-          this.age += dt;
+        Sparkle.prototype.update = function (dt) {
+          this.phase += this.speed * dt;
         };
-        Particle.prototype.draw = function (ctx) {
-          const t = Math.max(0, 1 - this.age / this.life);
-          ctx.globalAlpha = t;
-          // brillo radial
-          const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 6);
-          g.addColorStop(0, this.color);
-          g.addColorStop(0.25, this.color.replace('0.95', '0.55'));
+        Sparkle.prototype.draw = function (ctx) {
+          const t = (Math.sin(this.phase) + 1) / 2;
+          const alpha = 0.2 + t * 0.65;
+          const rad = this.r + t * (this.r * 0.9);
+          const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, rad);
+          g.addColorStop(0, this.color.replace('0.95', alpha.toFixed(2)));
+          g.addColorStop(0.4, this.color.replace('0.95', (alpha * 0.45).toFixed(2)));
           g.addColorStop(1, 'rgba(0,0,0,0)');
           ctx.fillStyle = g;
           ctx.beginPath();
-          ctx.arc(this.x, this.y, this.size * 6 * t, 0, Math.PI * 2);
+          ctx.arc(this.x, this.y, rad, 0, Math.PI * 2);
           ctx.fill();
-          ctx.globalAlpha = 1;
         };
 
-        function explode(x, y, color) {
-          const count = randInt(20, 44);
-          for (let i = 0; i < count; i++) {
-            const c = palette[randInt(0, palette.length - 1)];
-            particles.push(new Particle(x, y, c));
+        // Palette for petals (soft gradient pairs)
+        const petalPalette = [
+          { start: 'rgba(255,190,210,0.98)', end: 'rgba(255,120,170,0.92)' },
+          { start: 'rgba(255,220,170,0.96)', end: 'rgba(255,145,125,0.86)' },
+          { start: 'rgba(186,245,220,0.96)', end: 'rgba(120,225,190,0.88)' },
+          { start: 'rgba(200,175,255,0.96)', end: 'rgba(160,110,255,0.9)' },
+          { start: 'rgba(255,205,235,0.96)', end: 'rgba(255,150,200,0.9)' }
+        ];
+        const sparkleColors = [
+          'rgba(255,210,110,0.95)',
+          'rgba(255,143,177,0.95)',
+          'rgba(122,231,199,0.95)',
+          'rgba(178,130,255,0.95)'
+        ];
+
+        // populate
+        function init() {
+          petals.length = 0;
+          sparkles.length = 0;
+          for (let i = 0; i < PETAL_COUNT; i++) {
+            const size = rand(6, 18);
+            petals.push(new Petal(rand(0, window.innerWidth), rand(-300, window.innerHeight), size, petalPalette[randInt(0, petalPalette.length-1)], rand(0,10000)));
+          }
+          for (let i = 0; i < SPARKLE_COUNT; i++) {
+            sparkles.push(new Sparkle(rand(20, window.innerWidth-20), rand(20, window.innerHeight-20), rand(6, 28), sparkleColors[randInt(0, sparkleColors.length-1)]));
           }
         }
+        init();
+        window.addEventListener('resize', () => {
+          setTimeout(() => init(), 120);
+        });
 
-        // lanzar un cohete desde la parte inferior a una altura aleatoria
-        function launchRandom() {
-          const startX = rand(width * 0.2, width * 0.8) / (window.devicePixelRatio || 1);
-          const startY = (height / (window.devicePixelRatio || 1)) + 20;
-          const targetX = rand(80, (window.innerWidth - 80));
-          const targetY = rand(window.innerHeight * 0.08, window.innerHeight * 0.45);
-          const c = palette[randInt(0, palette.length - 1)];
-          fireworks.push(new Firework(startX, startY, targetX, targetY, c));
-        }
+        let last = performance.now();
+        function loop(now) {
+          const dt = Math.min(32, now - last);
+          last = now;
 
-        // anim loop
-        function loop(ts) {
-          if (!lastTime) lastTime = ts;
-          const dt = Math.min(20, ts - lastTime);
-          lastTime = ts;
-
-          // limpiar con leve estela (para efecto borroso)
+          // clear with slight dim to create soft trails
           ctx.globalCompositeOperation = 'source-over';
-          ctx.fillStyle = 'rgba(4,2,12,0.25)'; // deja rastros sutiles
+          ctx.fillStyle = 'rgba(6,4,18,0.12)';
           ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
           ctx.globalCompositeOperation = 'lighter';
 
-          // actualizar y dibujar cohetes
-          for (let i = fireworks.length - 1; i >= 0; i--) {
-            const f = fireworks[i];
-            f.update(dt);
-            f.draw(ctx);
-            if (!f.alive) fireworks.splice(i, 1);
+          // draw sparkles
+          for (let s of sparkles) {
+            s.update(dt);
+            s.draw(ctx);
           }
 
-          // partículas
-          for (let i = particles.length - 1; i >= 0; i--) {
-            const p = particles[i];
+          // update and draw petals
+          for (let p of petals) {
             p.update(dt);
             p.draw(ctx);
-            if (p.age > p.life) particles.splice(i, 1);
           }
-
-          // mantener número razonable
-          if (particles.length > 1200) particles.splice(0, particles.length - 900);
 
           requestAnimationFrame(loop);
         }
 
-        // iniciar lanzamientos periódicos y al pulsar
-        let autoInterval = setInterval(launchRandom, 900); // cada 0.9s
-        // a veces lanzar ráfagas
-        setInterval(() => {
-          const burst = randInt(2, 4);
-          for (let i = 0; i < burst; i++) {
-            setTimeout(launchRandom, i * 160);
-          }
-        }, 4200);
+        requestAnimationFrame(loop);
 
-        // al hacer clic / tocar, lanza hacia la posición
+        // interactive bursts on click/tap: gentle petal burst near pointer
         window.addEventListener('pointerdown', (ev) => {
           const x = ev.clientX;
           const y = ev.clientY;
-          for (let i = 0; i < randInt(2, 4); i++) {
-            const startX = rand(width * 0.15, width * 0.85) / (window.devicePixelRatio || 1);
-            const startY = (height / (window.devicePixelRatio || 1)) + 20;
-            const c = palette[randInt(0, palette.length - 1)];
-            fireworks.push(new Firework(startX, startY, x + rand(-20,20), y + rand(-20,20), c));
+          // create a few localized petals
+          for (let i = 0; i < 6; i++) {
+            const size = rand(8, 18);
+            const p = new Petal(x + rand(-30,30), y + rand(-10,10), size, petalPalette[randInt(0, petalPalette.length-1)], rand(0,10000));
+            p.vx = rand(-1.2, 1.2);
+            p.vy = rand(0.6, 1.4);
+            petals.push(p);
           }
+          // add a small sparkle
+          sparkles.push(new Sparkle(x + rand(-20,20), y + rand(-20,20), rand(8,26), sparkleColors[randInt(0, sparkleColors.length-1)]));
+          // limit counts
+          if (petals.length > 160) petals.splice(0, petals.length - 120);
+          if (sparkles.length > 36) sparkles.splice(0, sparkles.length - 28);
         });
 
-        // iniciar loop
-        requestAnimationFrame(loop);
-
-        // limpiar al salir de la página
+        // pause animations when tab not focused
         window.addEventListener('blur', () => {
-          clearInterval(autoInterval);
+          // lightweight: stop requesting frames by no-op loop until focus
         });
       })();
-    } // fin prefersReducedMotion
+    } // end prefersReducedMotion
+    // after entrance, give heading a gentle float (so it keeps subtle life)
+    window.addEventListener('load', () => {
+      const h = document.querySelector('.greetings');
+      if (h && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setTimeout(() => h.classList.add('float'), 1200);
+      }
+    });
   </script>
 </body>
 </html>
