@@ -12,9 +12,18 @@
   <!-- Canvas para pétalos y brillos (detrás del contenido) -->
   <canvas id="romantic-canvas" aria-hidden="true"></canvas>
 
+  <!-- AUDIO de fondo: colocar DATOS/audio/music.mp3 (añade más sources si quieres) -->
+  <audio id="bg-music" loop preload="auto" aria-hidden="true">
+    <source src="DATOS/audio/music.mp3" type="audio/mpeg">
+    <source src="DATOS/audio/music.m4a" type="audio/mp4">
+    Tu navegador no soporta el elemento de audio.
+  </audio>
+
+  <!-- Botón Play/Pause (oculto hasta que haga falta en escritorio) -->
+  <button id="music-toggle" class="music-toggle" aria-pressed="false" aria-label="Reproducir música" title="Reproducir música">▶︎</button>
+
   <main class="page" aria-labelledby="greeting-title">
     <header class="card" role="banner">
-
       <figure class="logo" aria-hidden="true">
         <img src="DATOS/img/flowers.png" alt="Logo floral" width="72" height="72" loading="lazy" />
       </figure>
@@ -46,9 +55,9 @@
     </header>
   </main>
 
-  <!-- Script: animación suave de pétalos + brillos -->
+  <!-- Script: animación suave de pétalos + brillos (mantengo tu script original) -->
   <script>
-    // Respetar prefer-reduced-motion
+    // Respeto prefers-reduced-motion (tu código existente)
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!prefersReducedMotion) {
       (function () {
@@ -222,6 +231,7 @@
         });
       })();
     } // end prefersReducedMotion
+
     // after entrance, give heading a gentle float (so it keeps subtle life)
     window.addEventListener('load', () => {
       const h = document.querySelector('.greetings');
@@ -229,6 +239,78 @@
         setTimeout(() => h.classList.add('float'), 1200);
       }
     });
+  </script>
+
+  <!-- AUDIO handling script: autoplay unlocking + toggle + saving preference -->
+  <script>
+    (function(){
+      const audio = document.getElementById('bg-music');
+      const btn = document.getElementById('music-toggle');
+
+      function setPlayingUI(isPlaying){
+        if (!btn) return;
+        btn.textContent = isPlaying ? '❚❚' : '▶︎';
+        btn.setAttribute('aria-pressed', String(isPlaying));
+        btn.setAttribute('aria-label', isPlaying ? 'Pausar música' : 'Reproducir música');
+      }
+
+      async function tryPlayAudio(){
+        if (!audio) return false;
+        try {
+          await audio.play();
+          setPlayingUI(true);
+          // mark unlocked so other pages can auto-play if user intentionally enabled
+          try { localStorage.setItem('audio_unlocked', '1'); } catch(e) {}
+          return true;
+        } catch (err){
+          // autoplay blocked
+          setPlayingUI(false);
+          if (btn) btn.style.display = '';
+          return false;
+        }
+      }
+
+      // unlock on first gesture (pointerdown/touchstart)
+      function unlockOnce(){
+        tryPlayAudio();
+        window.removeEventListener('pointerdown', unlockOnce);
+        window.removeEventListener('touchstart', unlockOnce);
+      }
+
+      if (btn){
+        // initially hidden, only show if autoplay fails
+        btn.style.display = 'none';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!audio) return;
+          if (audio.paused){
+            audio.play().then(() => {
+              setPlayingUI(true);
+              try { localStorage.setItem('audio_unlocked', '1'); } catch(e) {}
+            }).catch(()=> setPlayingUI(false));
+          } else {
+            audio.pause();
+            setPlayingUI(false);
+            try { localStorage.removeItem('audio_unlocked'); } catch(e) {}
+          }
+        });
+      }
+
+      // on load try autoplay; also attach gesture listeners as fallback
+      window.addEventListener('load', () => {
+        // If user previously unlocked audio on this device, try to auto-play again
+        const prev = (function(){ try { return localStorage.getItem('audio_unlocked'); } catch(e) { return null; } })();
+        if (prev && audio){
+          // try to play (may still be blocked, in which case button will show)
+          tryPlayAudio();
+        } else {
+          // try immediate autoplay once; if blocked it will show button
+          tryPlayAudio();
+        }
+        window.addEventListener('pointerdown', unlockOnce, {passive:true});
+        window.addEventListener('touchstart', unlockOnce, {passive:true});
+      });
+    })();
   </script>
 </body>
 </html>

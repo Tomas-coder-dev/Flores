@@ -124,18 +124,13 @@ body:before{
   background-image: var(--accent-gradient);
   -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent; /* IMPORTANT for iOS Safari */
   text-shadow: 0 8px 40px rgba(60,20,40,0.12);
   transform-origin:center;
   position:relative;
   z-index:6; /* keep above card overlay */
   -webkit-text-stroke: 0.6px rgba(255,255,255,0.06);
 }
-
-/* --------- IMPORTANT: remove duplicated pseudo-element approach ----------
-   Instead of creating a pseudo-element with the full text (which caused
-   the double/blurred look), we put the neon glow directly on each glyph.
-   This removes the duplicated text while keeping a strong neon outline.
------------------------------------------------------------------------*/
 
 /* Neon glow applied to each glyph (span) */
 .greetings > span{
@@ -147,25 +142,20 @@ body:before{
   position:relative;
   z-index:7; /* ensure glyphs are on top */
 
-  /* primary fill is the gradient on the container (background-clip:text) */
+  -webkit-text-fill-color: transparent; /* ensure gradient is visible in WebKit */
   /* layered neon glow (inner crisp + cores + outer haze) */
   text-shadow:
-    /* crisp inner edge to separate from background */
     0 1px 0 rgba(255,255,255,0.06),
-    /* bright core */
     0 0 4px rgba(255,143,177,0.95),
     0 0 8px rgba(255,143,177,0.85),
-    /* wider halo */
     0 0 16px rgba(255,200,220,0.55),
     0 0 26px rgba(183,86,146,0.36),
-    /* faint colored bloom */
     0 0 44px rgba(122,231,199,0.12);
-  /* extra soft glow for blending */
   filter: saturate(120%) drop-shadow(0 6px 18px rgba(255,120,160,0.06));
   -webkit-text-stroke: 0.8px rgba(0,0,0,0.18);
 }
 
-/* keep staggered entrance */
+/* staggered entrance */
 .greetings > span:nth-child(1){ animation-delay: 0.06s; }
 .greetings > span:nth-child(2){ animation-delay: 0.12s; }
 .greetings > span:nth-child(3){ animation-delay: 0.18s; }
@@ -238,6 +228,33 @@ body:before{
   z-index:3;
 }
 
+/* music toggle button (floating, visible on mobile if autoplay blocked) */
+.music-toggle{
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 9999;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(90deg, rgba(255,210,110,0.95), rgba(255,140,177,0.95));
+  color: #08101b;
+  font-weight: 700;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.music-toggle:focus { outline: 3px solid rgba(255,255,255,0.12); outline-offset:4px; }
+
+/* hide toggle on wide screens */
+@media (min-width:900px){
+  .music-toggle { display: none !important; }
+}
+
 /* floating badge / subtitle */
 .charm{
   position:absolute;
@@ -270,11 +287,12 @@ body:before{
 /* responsive */
 @media (max-width:700px){
   .card{ padding:20px; border-radius:14px; }
-  .greetings{ font-size:2.8rem; display:block; }
-  .greetings > span{ transform:none; animation:none; opacity:1; -webkit-text-stroke:0; text-shadow:none; filter:none; }
+  .greetings{ font-size:2.8rem; display:block; -webkit-text-fill-color: transparent; }
+  .greetings > span{ transform:none; animation:none; opacity:1; -webkit-text-stroke:0; text-shadow:none; filter:none; -webkit-text-fill-color: transparent; }
   .description{ font-size:1rem; }
   .btn{ padding:10px 18px; font-size:.96rem; }
   .charm{ display:none; }
+  .music-toggle { display: flex !important; } /* asegurar visibilidad en móviles */
 }
 
 /* reduced motion accessibility */
